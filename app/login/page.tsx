@@ -41,7 +41,7 @@ export default function LoginPage() {
         return;
       }
       if (result.role === "player") {
-        router.push("/reservations/new");
+        router.push("/player/new");
       } else {
         router.push("/admin");
       }
