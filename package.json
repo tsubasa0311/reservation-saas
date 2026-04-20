@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "node scripts/seed.mjs"
+    "db:seed": "node scripts/seed.mjs",
+    "types:gen": "node scripts/gen-types.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
@@ -32,6 +33,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "supabase": "^2.92.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
