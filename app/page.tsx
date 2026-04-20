@@ -21,6 +21,6 @@ export default async function Home() {
     redirect("/login");
   }
 
-  if (me.role === "player") redirect("/player/new");
-  redirect("/admin");
+  if (me.role === "player") redirect("/player");
+  redirect("/owner");
 }

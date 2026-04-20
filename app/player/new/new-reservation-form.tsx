@@ -28,6 +28,9 @@ import {
 // Schema
 // ----------------------------------------------------------------
 
+// Radix Select は value="" を許さないため「なし」用の sentinel
+const EXT_NONE = "__none__";
+
 const formSchema = z.object({
   customer_type: z.enum(["new", "member"]),
   customer_name: z.string().trim().min(1, "顧客名を入力してください"),
@@ -211,7 +214,7 @@ export function NewReservationForm({
         nominationFee: selectedNomination,
         extension: selectedExtension,
         options: selectedOptionsList,
-        transportFee: watchedValues.transport_fee || 0,
+        transportFee: Number(watchedValues.transport_fee) || 0,
         transportBackRate: backRateTransport,
       }),
     [selectedCourse, selectedNomination, selectedExtension, selectedOptionsList, watchedValues.transport_fee, backRateTransport],
@@ -222,9 +225,12 @@ export function NewReservationForm({
     const optionsPayload = Array.from(selectedOptions.entries()).map(
       ([option_id, quantity]) => ({ option_id, quantity }),
     );
+    // datetime-local はタイムゾーンなし。ブラウザのローカルTZでISO化してから送信
+    const startAtIso = new Date(values.start_at).toISOString();
     startTransition(async () => {
       const result = await createReservation({
         ...values,
+        start_at: startAtIso,
         extension_id: values.extension_id || null,
         options: optionsPayload,
         playerId,
@@ -360,12 +366,16 @@ export function NewReservationForm({
           render={({ field }) => (
             <Select value={field.value} onValueChange={field.onChange}>
               <SelectTrigger className="w-full" aria-invalid={errors.course_id ? true : undefined}>
-                <SelectValue placeholder="コースを選択" />
+                <SelectValue placeholder="コースを選択">
+                  {selectedCourse
+                    ? `${selectedCourse.name} ／ ¥${selectedCourse.price.toLocaleString()}`
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {master.courses.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.name}（{c.duration_min}分）– ¥{c.price.toLocaleString()}
+                    {c.name}（{c.duration_min}分）／¥{c.price.toLocaleString()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -384,15 +394,22 @@ export function NewReservationForm({
           name="extension_id"
           control={control}
           render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
+            <Select
+              value={field.value === "" ? EXT_NONE : field.value}
+              onValueChange={(v) => field.onChange(v === EXT_NONE ? "" : v)}
+            >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="なし" />
+                <SelectValue placeholder="なし">
+                  {selectedExtension
+                    ? `${selectedExtension.name} ／ ¥${selectedExtension.price.toLocaleString()}`
+                    : "なし"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">なし</SelectItem>
+                <SelectItem value={EXT_NONE}>なし</SelectItem>
                 {master.extensions.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
-                    {e.name}（{e.duration_min}分）– ¥{e.price.toLocaleString()}
+                    {e.name}（{e.duration_min}分）／¥{e.price.toLocaleString()}
                   </SelectItem>
                 ))}
               </SelectContent>
