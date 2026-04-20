@@ -41,9 +41,9 @@ export default function LoginPage() {
         return;
       }
       if (result.role === "player") {
-        router.push("/player/new");
+        router.push("/player");
       } else {
-        router.push("/admin");
+        router.push("/owner");
       }
       router.refresh();
     });
