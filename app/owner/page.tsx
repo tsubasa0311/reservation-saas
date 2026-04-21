@@ -79,13 +79,22 @@ export default async function OwnerDashboardPage() {
 
       {/* ナビ */}
       <nav className="space-y-2">
-        <Link
-          href="/owner/reservations"
-          className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm hover:bg-muted/40"
-        >
-          <span>予約一覧</span>
-          <span className="text-muted-foreground">→</span>
-        </Link>
+        {[
+          { href: "/owner/reservations", label: "予約一覧" },
+          { href: "/owner/courses", label: "コース管理" },
+          { href: "/owner/nomination", label: "指名料設定" },
+          { href: "/owner/extensions", label: "延長料金管理" },
+          { href: "/owner/options", label: "オプション管理" },
+        ].map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm hover:bg-muted/40"
+          >
+            <span>{label}</span>
+            <span className="text-muted-foreground">→</span>
+          </Link>
+        ))}
       </nav>
     </main>
   );
