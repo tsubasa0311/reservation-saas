@@ -49,7 +49,8 @@ const formSchema = z.object({
   transport_fee: z
     .string()
     .min(1, "交通費を入力してください（0円の場合は0と入力）")
-    .pipe(z.coerce.number().int().min(0).max(1_000_000)),
+    .transform((v) => Number(v))
+    .pipe(z.number().int().min(0).max(1_000_000)),
   payment_method: z.enum(["cash", "card"]),
 });
 
