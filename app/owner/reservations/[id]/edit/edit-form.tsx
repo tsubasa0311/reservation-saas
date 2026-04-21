@@ -12,7 +12,7 @@ import type {
   ResolvedExtension,
   ResolvedOption,
 } from "@/lib/pricing/get-player-master";
-import { createReservation } from "./actions";
+import { ownerUpdateReservation } from "./actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// ----------------------------------------------------------------
-// Schema
-// ----------------------------------------------------------------
-
-// Radix Select は value="" を許さないため「なし」用の sentinel
 const EXT_NONE = "__none__";
 
 const formSchema = z.object({
@@ -39,16 +34,31 @@ const formSchema = z.object({
   start_at: z.string().min(1, "開始日時を入力してください"),
   nomination_type: z.enum(["first", "repeat"]),
   course_id: z.string().min(1, "コースを選択してください"),
-  extension_id: z.string(), // "" = なし
+  extension_id: z.string(),
   transport_fee: z.coerce.number().int().min(0),
   payment_method: z.enum(["cash", "card"]),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
-// ----------------------------------------------------------------
-// Price calculation (Step 4-3)
-// ----------------------------------------------------------------
+type InitialValues = {
+  customer_type: "new" | "member";
+  customer_name: string;
+  reservation_channel: "line" | "mail" | "dm" | "phone";
+  meeting_method: "meetup" | "hotel" | "home" | "dm";
+  start_at: string;
+  nomination_type: "first" | "repeat";
+  course_id: string;
+  extension_id: string;
+  transport_fee: number;
+  payment_method: "cash" | "card";
+};
+
+function toLocalInputValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 function calcTotals({
   course,
@@ -56,41 +66,29 @@ function calcTotals({
   extension,
   options,
   transportFee,
-  transportBackRate,
 }: {
   course: ResolvedCourse | null;
   nominationFee: ResolvedNominationFee | null;
   extension: ResolvedExtension | null;
   options: Array<{ option: ResolvedOption; quantity: number }>;
   transportFee: number;
-  transportBackRate: number;
 }) {
   const courseFee = course?.price ?? 0;
   const courseBack = course ? Math.floor((courseFee * course.back_rate) / 100) : 0;
-
   const nomFee = nominationFee?.price ?? 0;
   const nomBack = nominationFee ? Math.floor((nomFee * nominationFee.back_rate) / 100) : 0;
-
   const extFee = extension?.price ?? 0;
   const extBack = extension ? Math.floor((extFee * extension.back_rate) / 100) : 0;
-
   const optTotal = options.reduce((s, { option, quantity }) => s + option.price * quantity, 0);
   const optBack = options.reduce(
     (s, { option, quantity }) => s + Math.floor((option.price * quantity * option.back_rate) / 100),
     0,
   );
-
-  const transportBack = Math.floor((transportFee * transportBackRate) / 100);
-
-  const total = courseFee + nomFee + extFee + optTotal + transportFee;
-  const playerBack = courseBack + nomBack + extBack + optBack + transportBack;
-
-  return { total, playerBack };
+  return {
+    total: courseFee + nomFee + extFee + optTotal + transportFee,
+    playerBack: courseBack + nomBack + extBack + optBack,
+  };
 }
-
-// ----------------------------------------------------------------
-// Sub-components
-// ----------------------------------------------------------------
 
 type RadioOption = { value: string; label: string };
 
@@ -132,27 +130,23 @@ function RadioGroup({
   );
 }
 
-// ----------------------------------------------------------------
-// Main form
-// ----------------------------------------------------------------
-
-export function NewReservationForm({
+export function OwnerEditReservationForm({
   master,
-  playerId,
-  backRateTransport,
+  reservationId,
+  playerName,
+  initialValues,
+  initialOptions,
 }: {
   master: PlayerMaster;
-  playerId: string;
-  backRateTransport: number;
+  reservationId: string;
+  playerName: string;
+  initialValues: InitialValues;
+  initialOptions: Map<string, number>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
-
-  // Options state outside RHF (checkbox + quantity)
-  const [selectedOptions, setSelectedOptions] = useState<Map<string, number>>(
-    new Map(),
-  );
+  const [selectedOptions, setSelectedOptions] = useState<Map<string, number>>(initialOptions);
 
   const {
     register,
@@ -164,29 +158,27 @@ export function NewReservationForm({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(formSchema) as unknown as Resolver<FormValues>,
     defaultValues: {
-      customer_type: "new",
-      customer_name: "",
-      reservation_channel: "line",
-      meeting_method: "meetup",
-      start_at: "",
-      nomination_type: "first",
-      course_id: "",
-      extension_id: "",
-      transport_fee: 0,
-      payment_method: "cash",
+      customer_type: initialValues.customer_type,
+      customer_name: initialValues.customer_name,
+      reservation_channel: initialValues.reservation_channel,
+      meeting_method: initialValues.meeting_method,
+      start_at: toLocalInputValue(initialValues.start_at),
+      nomination_type: initialValues.nomination_type,
+      course_id: initialValues.course_id,
+      extension_id: initialValues.extension_id,
+      transport_fee: initialValues.transport_fee,
+      payment_method: initialValues.payment_method,
     },
   });
 
   const watchedValues = watch();
 
-  // Resolve current selections for calc
   const selectedCourse = useMemo(
     () => master.courses.find((c) => c.id === watchedValues.course_id) ?? null,
     [master.courses, watchedValues.course_id],
   );
   const selectedNomination = useMemo(
-    () =>
-      master.nominationFees.find((n) => n.type === watchedValues.nomination_type) ?? null,
+    () => master.nominationFees.find((n) => n.type === watchedValues.nomination_type) ?? null,
     [master.nominationFees, watchedValues.nomination_type],
   );
   const selectedExtension = useMemo(
@@ -215,9 +207,8 @@ export function NewReservationForm({
         extension: selectedExtension,
         options: selectedOptionsList,
         transportFee: Number(watchedValues.transport_fee) || 0,
-        transportBackRate: backRateTransport,
       }),
-    [selectedCourse, selectedNomination, selectedExtension, selectedOptionsList, watchedValues.transport_fee, backRateTransport],
+    [selectedCourse, selectedNomination, selectedExtension, selectedOptionsList, watchedValues.transport_fee],
   );
 
   const onSubmit = (values: FormValues) => {
@@ -225,27 +216,32 @@ export function NewReservationForm({
     const optionsPayload = Array.from(selectedOptions.entries()).map(
       ([option_id, quantity]) => ({ option_id, quantity }),
     );
-    // datetime-local はタイムゾーンなし。ブラウザのローカルTZでISO化してから送信
     const startAtIso = new Date(values.start_at).toISOString();
     startTransition(async () => {
-      const result = await createReservation({
+      const result = await ownerUpdateReservation({
+        reservationId,
         ...values,
         start_at: startAtIso,
         extension_id: values.extension_id || null,
         options: optionsPayload,
-        playerId,
       });
       if (!result.success) {
         setServerError(result.error);
         return;
       }
-      router.push(`/player/reservations/${result.reservationId}`);
+      router.push(`/owner/reservations/${reservationId}`);
       router.refresh();
     });
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+      {/* プレイヤー表示 */}
+      <div className="rounded-lg bg-muted px-4 py-2 text-sm">
+        <span className="text-muted-foreground">プレイヤー：</span>
+        <span className="font-medium">{playerName}</span>
+      </div>
+
       {/* 1. 顧客区分 */}
       <Controller
         name="customer_type"
@@ -515,7 +511,7 @@ export function NewReservationForm({
       )}
 
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? "送信中..." : "仮予約として保存"}
+        {isPending ? "保存中..." : "変更を保存"}
       </Button>
     </form>
   );

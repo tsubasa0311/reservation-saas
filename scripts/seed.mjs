@@ -40,6 +40,22 @@ function virtualEmail({ storeCode, loginId, isSuperAdmin }) {
 async function cleanup() {
   console.log("--- Cleanup ---");
 
+  // 0. 既存テスト店舗の予約を先に削除
+  //    （reservation_options.option_id が options を CASCADE 無しで参照しているため、
+  //     店舗を直接削除すると options 削除時に FK 違反になる）
+  const { data: targetStore } = await supabase
+    .from("stores")
+    .select("id")
+    .eq("store_code", STORE_CODE)
+    .maybeSingle();
+  if (targetStore) {
+    const { error: resErr } = await supabase
+      .from("reservations")
+      .delete()
+      .eq("store_id", targetStore.id);
+    if (resErr) throw resErr;
+  }
+
   // 1. 既存テスト店舗を削除（cascadeで users/courses等も削除される）
   //    ※ super_admin ユーザーは store_id=NULL なので別途削除
   const { error: storeErr } = await supabase

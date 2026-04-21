@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { logout } from "@/lib/auth/logout";
 
 export default async function PlayerSalesPage() {
   const supabase = await createClient();
@@ -36,9 +37,26 @@ export default async function PlayerSalesPage() {
     <main className="mx-auto max-w-lg px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">売上</h1>
-        <Link href="/player" className="text-sm text-muted-foreground hover:underline">
-          ← 予約一覧
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/player" className="text-sm text-muted-foreground hover:underline">
+            ← 一覧へ
+          </Link>
+          <form action={logout}>
+            <button type="submit" className="text-sm text-muted-foreground hover:underline">
+              ログアウト
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* 今月CSVエクスポート */}
+      <div className="flex justify-end">
+        <a
+          href={`/api/player/sales/export?from=${monthStart.toISOString().slice(0, 10)}`}
+          className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted/40 transition-colors"
+        >
+          今月分CSV出力
+        </a>
       </div>
 
       {/* 今月サマリ */}

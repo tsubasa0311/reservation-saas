@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { logout } from "@/lib/auth/logout";
 
 // ----------------------------------------------------------------
 // Types
@@ -82,21 +83,29 @@ export function ReservationList({
 
   return (
     <main className="min-h-screen pb-24">
-      {/* 月次サマリ */}
-      <div className="border-b border-border bg-muted/50 px-4 py-4 space-y-1">
-        <p className="text-sm font-medium">{playerName}</p>
+      {/* ヘッダー */}
+      <div className="border-b border-border bg-muted/50 px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">{playerName}</p>
+          <div className="flex items-center gap-3">
+            <Link href="/player/sales" className="text-xs text-muted-foreground hover:underline">
+              売上詳細
+            </Link>
+            <form action={logout}>
+              <button type="submit" className="text-xs text-muted-foreground hover:underline">
+                ログアウト
+              </button>
+            </form>
+          </div>
+        </div>
         <div className="flex gap-6 text-sm">
           <div>
             <span className="text-muted-foreground">今月売上</span>
-            <span className="ml-2 font-semibold">
-              ¥{monthSales.toLocaleString()}
-            </span>
+            <span className="ml-2 font-semibold">¥{monthSales.toLocaleString()}</span>
           </div>
           <div>
             <span className="text-muted-foreground">バック</span>
-            <span className="ml-2 font-semibold">
-              ¥{monthBack.toLocaleString()}
-            </span>
+            <span className="ml-2 font-semibold">¥{monthBack.toLocaleString()}</span>
           </div>
         </div>
       </div>

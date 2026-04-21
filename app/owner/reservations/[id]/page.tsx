@@ -242,6 +242,14 @@ export default async function OwnerReservationDetailPage({
       </div>
 
       {/* アクション */}
+      {status !== "cancelled" && (
+        <Link
+          href={`/owner/reservations/${r.id}/edit`}
+          className="flex w-full items-center justify-center rounded-lg border border-border py-2 text-sm font-medium hover:bg-muted/40 transition-colors"
+        >
+          編集
+        </Link>
+      )}
       <ActionButtons reservationId={r.id} status={status} />
 
       {/* 変更履歴（簡易） */}

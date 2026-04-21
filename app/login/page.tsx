@@ -42,6 +42,8 @@ export default function LoginPage() {
       }
       if (result.role === "player") {
         router.push("/player");
+      } else if (result.role === "super_admin") {
+        router.push("/admin");
       } else {
         router.push("/owner");
       }
@@ -51,8 +53,14 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm space-y-6">
-        <header className="space-y-1 text-center">
+      <div className="w-full max-w-sm space-y-6 rounded-2xl border border-border/60 bg-card/80 p-8 shadow-xl shadow-primary/5 backdrop-blur">
+        <header className="space-y-2 text-center">
+          <div className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">ログイン</h1>
           <p className="text-sm text-muted-foreground">
             店舗コード・ログインID・パスワードを入力してください

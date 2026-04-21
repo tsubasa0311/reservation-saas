@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardChart } from "./dashboard-chart";
+import { logout } from "@/lib/auth/logout";
 
 // ----------------------------------------------------------------
 // 期間計算
@@ -123,7 +124,14 @@ export default async function OwnerDashboardPage({
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 space-y-6">
-      <h1 className="text-xl font-semibold">ダッシュボード</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">ダッシュボード</h1>
+        <form action={logout}>
+          <button type="submit" className="text-sm text-muted-foreground hover:underline">
+            ログアウト
+          </button>
+        </form>
+      </div>
 
       {/* 未確定バナー */}
       {tentativeCount > 0 && (
@@ -158,7 +166,7 @@ export default async function OwnerDashboardPage({
           ))}
         </div>
         {period === "custom" && (
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center">
             <input type="hidden" name="period" value="custom" />
             <input type="date" name="from" defaultValue={customFrom}
               className="rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
@@ -205,6 +213,16 @@ export default async function OwnerDashboardPage({
           <DashboardChart data={chartData} />
         </div>
       )}
+
+      {/* 売上明細CSV */}
+      <div className="flex justify-end">
+        <a
+          href={`/api/owner/sales/export?from=${from.toISOString().slice(0, 10)}&to=${to.toISOString().slice(0, 10)}`}
+          className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted/40 transition-colors"
+        >
+          売上明細CSV出力
+        </a>
+      </div>
 
       {/* プレイヤー別テーブル */}
       {chartData.length > 0 && (

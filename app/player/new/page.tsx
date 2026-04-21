@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getPlayerMaster } from "@/lib/pricing/get-player-master";
@@ -23,9 +24,14 @@ export default async function NewReservationPage() {
   return (
     <main className="min-h-screen bg-background px-4 py-6">
       <div className="mx-auto max-w-lg">
-        <header className="mb-6">
-          <h1 className="text-xl font-semibold">新規予約入力</h1>
-          <p className="text-sm text-muted-foreground">{me.name}</p>
+        <header className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold">新規予約入力</h1>
+            <p className="text-sm text-muted-foreground">{me.name}</p>
+          </div>
+          <Link href="/player" className="text-sm text-muted-foreground hover:underline">
+            ← 一覧へ
+          </Link>
         </header>
         <NewReservationForm
           master={master}

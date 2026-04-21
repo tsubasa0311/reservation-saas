@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { logout } from "@/lib/auth/logout";
 
 // ----------------------------------------------------------------
 // Types
@@ -145,9 +146,20 @@ export default async function OwnerReservationsPage({
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold">予約一覧</h1>
-        <Link href="/owner" className="text-sm text-muted-foreground hover:underline">← ダッシュボード</Link>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <a
+            href={`/api/owner/reservations/export?status=${filterStatus}&from=${filterFrom}&to=${filterTo}&player=${filterPlayer}&payment=${filterPayment}`}
+            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted/40 transition-colors"
+          >
+            CSV出力
+          </a>
+          <Link href="/owner" className="text-sm text-muted-foreground hover:underline">← ダッシュボード</Link>
+          <form action={logout}>
+            <button type="submit" className="text-sm text-muted-foreground hover:underline">ログアウト</button>
+          </form>
+        </div>
       </div>
 
       {/* フィルタ */}
