@@ -1,18 +1,24 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
 import { cancelReservation } from "./actions";
 
 export function CancelButton({ reservationId }: { reservationId: string }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleCancel = () => {
     if (!confirm("この予約を取り消しますか？")) return;
     setError(null);
     startTransition(async () => {
       const result = await cancelReservation(reservationId);
-      if (result?.error) setError(result.error);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      router.push("/player");
     });
   };
 

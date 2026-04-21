@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,15 +36,24 @@ const formSchema = z.object({
   customer_name: z.string().trim().min(1, "顧客名を入力してください"),
   reservation_channel: z.enum(["line", "mail", "dm", "phone"]),
   meeting_method: z.enum(["meetup", "hotel", "home", "dm"]),
-  start_at: z.string().min(1, "開始日時を入力してください"),
+  start_at: z
+    .string()
+    .min(1, "開始日時を入力してください")
+    .refine((v) => {
+      const d = new Date(v);
+      return !isNaN(d.getTime()) && d.getTime() >= Date.now() - 60 * 1000;
+    }, "過去の日時は選択できません"),
   nomination_type: z.enum(["first", "repeat"]),
   course_id: z.string().min(1, "コースを選択してください"),
   extension_id: z.string(), // "" = なし
-  transport_fee: z.coerce.number().int().min(0),
+  transport_fee: z
+    .string()
+    .min(1, "交通費を入力してください（0円の場合は0と入力）")
+    .pipe(z.coerce.number().int().min(0).max(1_000_000)),
   payment_method: z.enum(["cash", "card"]),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.input<typeof formSchema>;
 
 // ----------------------------------------------------------------
 // Price calculation (Step 4-3)
@@ -148,6 +157,21 @@ export function NewReservationForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [minDateTime, setMinDateTime] = useState<string>("");
+
+  // datetime-local の min 属性は SSR と CSR で値が分かれないようマウント後に設定
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      now.setSeconds(0, 0);
+      const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+      const local = new Date(now.getTime() - tzOffsetMs);
+      setMinDateTime(local.toISOString().slice(0, 16));
+    };
+    update();
+    const id = setInterval(update, 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Options state outside RHF (checkbox + quantity)
   const [selectedOptions, setSelectedOptions] = useState<Map<string, number>>(
@@ -172,7 +196,7 @@ export function NewReservationForm({
       nomination_type: "first",
       course_id: "",
       extension_id: "",
-      transport_fee: 0,
+      transport_fee: "",
       payment_method: "cash",
     },
   });
@@ -220,18 +244,32 @@ export function NewReservationForm({
     [selectedCourse, selectedNomination, selectedExtension, selectedOptionsList, watchedValues.transport_fee, backRateTransport],
   );
 
+  const endTime = useMemo(() => {
+    if (!watchedValues.start_at || !selectedCourse) return null;
+    const start = new Date(watchedValues.start_at);
+    if (isNaN(start.getTime())) return null;
+    const totalMin = selectedCourse.duration_min + (selectedExtension?.duration_min ?? 0);
+    return new Date(start.getTime() + totalMin * 60 * 1000);
+  }, [watchedValues.start_at, selectedCourse, selectedExtension]);
+
   const onSubmit = (values: FormValues) => {
     setServerError(null);
     const optionsPayload = Array.from(selectedOptions.entries()).map(
       ([option_id, quantity]) => ({ option_id, quantity }),
     );
-    // datetime-local はタイムゾーンなし。ブラウザのローカルTZでISO化してから送信
     const startAtIso = new Date(values.start_at).toISOString();
     startTransition(async () => {
       const result = await createReservation({
-        ...values,
+        customer_type: values.customer_type,
+        customer_name: values.customer_name,
+        reservation_channel: values.reservation_channel,
+        meeting_method: values.meeting_method,
         start_at: startAtIso,
+        nomination_type: values.nomination_type,
+        course_id: values.course_id,
         extension_id: values.extension_id || null,
+        transport_fee: Number(values.transport_fee) || 0,
+        payment_method: values.payment_method,
         options: optionsPayload,
         playerId,
       });
@@ -240,7 +278,6 @@ export function NewReservationForm({
         return;
       }
       router.push(`/player/reservations/${result.reservationId}`);
-      router.refresh();
     });
   };
 
@@ -321,15 +358,27 @@ export function NewReservationForm({
 
       {/* 5. 開始日時 */}
       <div className="space-y-1.5">
-        <Label htmlFor="start_at">開始日時</Label>
+        <Label htmlFor="start_at">開始日時 <span className="text-destructive">*</span></Label>
         <Input
           id="start_at"
           type="datetime-local"
+          min={minDateTime || undefined}
           aria-invalid={errors.start_at ? true : undefined}
           {...register("start_at")}
         />
+        {endTime && (
+          <p className="text-xs text-muted-foreground">
+            終了予定：
+            {endTime.toLocaleString("ja-JP", {
+              month: "numeric",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        )}
         {errors.start_at && (
-          <p className="text-xs text-destructive">{errors.start_at.message}</p>
+          <p className="text-xs text-destructive">{errors.start_at.message ?? "開始日時を入力してください"}</p>
         )}
       </div>
 
@@ -359,7 +408,7 @@ export function NewReservationForm({
 
       {/* 7. コース */}
       <div className="space-y-1.5">
-        <Label>コース</Label>
+        <Label>コース <span className="text-destructive">*</span></Label>
         <Controller
           name="course_id"
           control={control}
@@ -497,7 +546,7 @@ export function NewReservationForm({
       />
 
       {/* 金額プレビュー */}
-      <div className="rounded-lg bg-muted p-4 space-y-1 text-sm">
+      <div className="rounded-lg bg-muted p-4 space-y-1.5 text-sm">
         <div className="flex justify-between font-medium">
           <span>合計金額</span>
           <span>¥{total.toLocaleString()}</span>

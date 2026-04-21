@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export async function cancelReservation(reservationId: string): Promise<{ error?: string }> {
@@ -35,5 +34,5 @@ export async function cancelReservation(reservationId: string): Promise<{ error?
 
   if (error) return { error: `取り消しに失敗しました: ${error.message}` };
 
-  redirect("/player");
+  return {};
 }
