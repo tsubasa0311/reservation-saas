@@ -145,7 +145,10 @@ export default async function OwnerReservationsPage({
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-      <h1 className="text-xl font-semibold">予約一覧</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold">予約一覧</h1>
+        <Link href="/owner" className="text-sm text-muted-foreground hover:underline">← ダッシュボード</Link>
+      </div>
 
       {/* フィルタ */}
       <form method="GET" className="rounded-lg border border-border p-4 space-y-3">
