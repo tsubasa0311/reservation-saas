@@ -85,6 +85,7 @@ export default async function OwnerDashboardPage() {
           { href: "/owner/nomination", label: "指名料設定" },
           { href: "/owner/extensions", label: "延長料金管理" },
           { href: "/owner/options", label: "オプション管理" },
+          { href: "/owner/players", label: "プレイヤー管理" },
         ].map(({ href, label }) => (
           <Link
             key={href}
